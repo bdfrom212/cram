@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npx create-next-app@14 *)",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "PowerShell(npm run *)"
+    ]
+  }
+}
