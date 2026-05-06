@@ -44,7 +44,10 @@ export default function ContactForm({ contact, mode }: Props) {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fields),
+        body: JSON.stringify({
+          ...fields,
+          last_contact_date: fields.last_contact_date || null,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

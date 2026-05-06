@@ -6,7 +6,7 @@ import Nav from '@/components/Nav'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Cram — Relationship Intelligence',
+  title: 'Cram - Relationship Intelligence',
   description: 'Wedding photography relationship management',
 }
 
