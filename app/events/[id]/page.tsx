@@ -36,6 +36,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       <div className="flex items-start justify-between gap-2">
         <Link href="/events" className="text-sm text-gray-400 hover:text-gray-600">← Events</Link>
         <div className="flex gap-2">
+          {event.tave_job_id && (
+            <a
+              href={`https://tave.app/jobs/view/${event.tave_job_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Open in Tave ↗
+            </a>
+          )}
           <Link href={`/events/${id}/edit`} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
             Edit
           </Link>

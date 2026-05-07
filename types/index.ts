@@ -25,6 +25,7 @@ export interface Event {
   venue_state?: string
   notes?: string
   tags?: string[]
+  tave_job_id?: string | null
   created_at: string
   updated_at: string
 }

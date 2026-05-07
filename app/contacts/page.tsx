@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Suspense } from 'react'
+import ContactSearch from '@/components/ContactSearch'
 
 interface ContactRow {
   id: string
@@ -8,19 +10,39 @@ interface ContactRow {
   company?: string | null
   role: string
   photo_url?: string | null
-  last_contact_date?: string | null
+  instagram?: string | null
+  event_contacts: { event_id: string }[]
 }
 
-export default async function ContactsPage() {
+export default async function ContactsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const { q } = await searchParams
   const supabase = await createClient()
-  const { data: contacts } = await supabase
-    .from('contacts')
-    .select('id, name, company, role, photo_url, last_contact_date')
-    .order('name')
 
-  const planners = (contacts ?? []).filter(c => c.role === 'planner') as ContactRow[]
-  const clients = (contacts ?? []).filter(c => c.role === 'client') as ContactRow[]
-  const vendors = (contacts ?? []).filter(c => c.role === 'vendor') as ContactRow[]
+  let query = supabase
+    .from('contacts')
+    .select('id, name, company, role, photo_url, instagram, event_contacts(event_id)')
+
+  if (q) {
+    query = query.or(`name.ilike.%${q}%,company.ilike.%${q}%`)
+  }
+
+  const { data } = await query.order('name')
+  const contacts = (data ?? []) as unknown as ContactRow[]
+
+  // Sort by event count desc (most frequent collaborators first), then name
+  contacts.sort((a, b) => {
+    const diff = (b.event_contacts?.length ?? 0) - (a.event_contacts?.length ?? 0)
+    return diff !== 0 ? diff : a.name.localeCompare(b.name)
+  })
+
+  const planners = contacts.filter(c => c.role === 'planner')
+  const clients  = contacts.filter(c => c.role === 'client')
+  const vendors  = contacts.filter(c => c.role === 'vendor')
+  const venues   = contacts.filter(c => c.role === 'venue')
 
   return (
     <div className="space-y-5">
@@ -31,13 +53,20 @@ export default async function ContactsPage() {
         </Link>
       </div>
 
-      {contacts?.length === 0 && (
-        <p className="text-gray-400 text-sm text-center py-12">No contacts yet. <Link href="/contacts/new" className="text-gray-900 underline">Add your first one.</Link></p>
+      <Suspense>
+        <ContactSearch initialValue={q ?? ''} />
+      </Suspense>
+
+      {contacts.length === 0 && (
+        <p className="text-gray-400 text-sm text-center py-12">
+          {q ? `No contacts matching "${q}"` : 'No contacts yet.'}
+        </p>
       )}
 
       {planners.length > 0 && <ContactGroup label="Planners" contacts={planners} />}
-      {clients.length > 0 && <ContactGroup label="Clients" contacts={clients} />}
-      {vendors.length > 0 && <ContactGroup label="Vendors" contacts={vendors} />}
+      {venues.length > 0   && <ContactGroup label="Venues"   contacts={venues} />}
+      {clients.length > 0  && <ContactGroup label="Clients"  contacts={clients} />}
+      {vendors.length > 0  && <ContactGroup label="Vendors"  contacts={vendors} />}
     </div>
   )
 }
@@ -49,29 +78,30 @@ function ContactGroup({ label, contacts }: { label: string; contacts: ContactRow
         {label} ({contacts.length})
       </h2>
       <div className="space-y-1">
-        {contacts.map(c => (
-          <Link
-            key={c.id}
-            href={`/contacts/${c.id}`}
-            className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50 transition-colors"
-          >
-            <div className="w-9 h-9 rounded-full bg-gray-100 overflow-hidden flex-shrink-0 flex items-center justify-center text-sm font-medium text-gray-500">
-              {c.photo_url
-                ? <Image src={c.photo_url} alt={c.name} width={36} height={36} className="w-full h-full object-cover" />
-                : c.name[0]
-              }
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
-              {c.company && <p className="text-xs text-gray-500 truncate">{c.company}</p>}
-            </div>
-            {c.last_contact_date && (
-              <p className="text-xs text-gray-400 flex-shrink-0">
-                {new Date(c.last_contact_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              </p>
-            )}
-          </Link>
-        ))}
+        {contacts.map(c => {
+          const eventCount = c.event_contacts?.length ?? 0
+          return (
+            <Link
+              key={c.id}
+              href={`/contacts/${c.id}`}
+              className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-full bg-gray-100 overflow-hidden flex-shrink-0 flex items-center justify-center text-sm font-medium text-gray-500">
+                {c.photo_url
+                  ? <Image src={c.photo_url} alt={c.name} width={36} height={36} className="w-full h-full object-cover" />
+                  : c.name[0]
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+                {c.company && <p className="text-xs text-gray-500 truncate">{c.company}</p>}
+              </div>
+              {eventCount > 0 && (
+                <p className="text-xs text-gray-400 flex-shrink-0">{eventCount} event{eventCount !== 1 ? 's' : ''}</p>
+              )}
+            </Link>
+          )
+        })}
       </div>
     </section>
   )
