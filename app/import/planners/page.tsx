@@ -4,6 +4,12 @@ import { useEffect, useState, useCallback } from 'react'
 import PlannerClusterCard from '@/components/import/PlannerClusterCard'
 import Link from 'next/link'
 
+interface SourceEvent {
+  raw_co: string
+  couple: string
+  date: string
+}
+
 interface Cluster {
   id: string
   raw_strings: string[]
@@ -12,6 +18,7 @@ interface Cluster {
   canonical_name: string | null
   instagram: string | null
   individuals: string[]
+  source_events: SourceEvent[]
   status: 'pending' | 'approved' | 'split' | 'skip'
   notes: string | null
 }

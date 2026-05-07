@@ -1,18 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm --version)",
-      "Bash(npx create-next-app@14 *)",
-      "PowerShell(npx tsc --noEmit 2>&1)",
-      "PowerShell(npm run *)",
-      "Bash(git rm *)",
-      "Bash(git commit -m 'remove accidental file *)",
-      "Bash(git remote *)",
-      "Bash(git branch *)",
-      "Bash(git push *)",
-      "mcp__claude_ai_Google_Drive__search_files",
-      "mcp__claude_ai_Google_Drive__read_file_content",
-      "Bash(curl *)"
+      "Bash(*)",
+      "PowerShell(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "mcp__claude_ai_Google_Drive__*",
+      "mcp__claude_ai_Gmail__*",
+      "mcp__claude_ai_Google_Calendar__*"
     ]
   }
 }

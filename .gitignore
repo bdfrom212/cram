@@ -34,3 +34,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# raw export data (contains client PII — keep local only)
+data/*.csv
+data/planner_events_map.json
+data/existing_clusters.json

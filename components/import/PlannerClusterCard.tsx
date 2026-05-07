@@ -2,6 +2,12 @@
 
 import { useState } from 'react'
 
+interface SourceEvent {
+  raw_co: string
+  couple: string
+  date: string
+}
+
 interface Cluster {
   id: string
   raw_strings: string[]
@@ -10,6 +16,7 @@ interface Cluster {
   canonical_name: string | null
   instagram: string | null
   individuals: string[]
+  source_events: SourceEvent[]
   status: 'pending' | 'approved' | 'split' | 'skip'
   notes: string | null
 }
@@ -19,12 +26,27 @@ interface Props {
   onDecision: (id: string, decision: Partial<Cluster>) => Promise<void>
 }
 
+function formatYear(dateStr: string) {
+  if (!dateStr) return ''
+  return dateStr.slice(0, 4)
+}
+
+function formatCouple(couple: string) {
+  // Strip common prefixes like "inq: " and clean up
+  return couple.replace(/^inq:\s*/i, '').trim()
+}
+
 export default function PlannerClusterCard({ cluster, onDecision }: Props) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(cluster.canonical_name ?? cluster.proposed_name)
   const [instagram, setInstagram] = useState(cluster.instagram ?? '')
   const [individuals, setIndividuals] = useState(cluster.individuals.join(', '))
   const [saving, setSaving] = useState(false)
+  const [showAllEvents, setShowAllEvents] = useState(false)
+
+  const events = cluster.source_events ?? []
+  const visibleEvents = showAllEvents ? events : events.slice(0, 5)
+  const hasMoreEvents = events.length > 5
 
   async function handleApprove() {
     setSaving(true)
@@ -53,6 +75,7 @@ export default function PlannerClusterCard({ cluster, onDecision }: Props) {
 
   return (
     <div className={`border rounded-xl p-4 mb-4 ${isDone ? 'bg-gray-50 opacity-60' : 'bg-white shadow-sm'}`}>
+      {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex-1">
           {editing ? (
@@ -73,7 +96,7 @@ export default function PlannerClusterCard({ cluster, onDecision }: Props) {
           </p>
         </div>
         {isDone && (
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+          <span className={`text-xs font-medium px-2 py-1 rounded-full flex-shrink-0 ${
             cluster.status === 'approved' ? 'bg-green-100 text-green-700' :
             cluster.status === 'skip' ? 'bg-gray-200 text-gray-500' :
             'bg-yellow-100 text-yellow-700'
@@ -83,6 +106,7 @@ export default function PlannerClusterCard({ cluster, onDecision }: Props) {
         )}
       </div>
 
+      {/* Edit fields */}
       {editing && (
         <div className="space-y-2 mb-3">
           <div>
@@ -106,9 +130,10 @@ export default function PlannerClusterCard({ cluster, onDecision }: Props) {
         </div>
       )}
 
+      {/* Individuals (non-editing) */}
       {cluster.individuals.length > 0 && !editing && (
         <div className="mb-3">
-          <p className="text-xs text-gray-400 mb-1">Individuals</p>
+          <p className="text-xs text-gray-400 mb-1">People</p>
           <div className="flex flex-wrap gap-1">
             {cluster.individuals.map(person => (
               <span key={person} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
@@ -119,6 +144,32 @@ export default function PlannerClusterCard({ cluster, onDecision }: Props) {
         </div>
       )}
 
+      {/* Source events — the key context for recognition */}
+      {events.length > 0 && (
+        <div className="mb-3">
+          <p className="text-xs text-gray-400 mb-1.5">Weddings you shot with them</p>
+          <div className="space-y-1">
+            {visibleEvents.map((ev, i) => (
+              <div key={i} className="flex items-baseline gap-2 text-sm">
+                <span className="text-gray-400 text-xs tabular-nums flex-shrink-0 w-8">
+                  {formatYear(ev.date)}
+                </span>
+                <span className="text-gray-700">{formatCouple(ev.couple)}</span>
+              </div>
+            ))}
+          </div>
+          {hasMoreEvents && (
+            <button
+              onClick={() => setShowAllEvents(!showAllEvents)}
+              className="text-xs text-gray-400 hover:text-gray-600 mt-1.5"
+            >
+              {showAllEvents ? 'Show less' : `+${events.length - 5} more`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Raw strings (collapsed) */}
       <details className="mb-3">
         <summary className="text-xs text-gray-400 cursor-pointer select-none">
           Raw strings ({cluster.raw_strings.length})
@@ -132,6 +183,7 @@ export default function PlannerClusterCard({ cluster, onDecision }: Props) {
         </ul>
       </details>
 
+      {/* Actions */}
       {!isDone && (
         <div className="flex gap-2">
           <button
