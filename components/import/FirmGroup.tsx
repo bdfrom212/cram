@@ -39,11 +39,17 @@ export default function FirmGroup({
   const [editingIndividuals, setEditingIndividuals] = useState(false)
   const [individualsText, setIndividualsText] = useState(firm.individuals.join(', '))
   const [saving, setSaving] = useState(false)
+  const [editingType, setEditingType] = useState(false)
 
   const firmName = firm.canonical_name ?? firm.proposed_name
   const isFirmApproved = firm.status === 'approved'
-  const entityType = classifyEntity(firmName)
+  const entityType: EntityType = (firm.entity_type as EntityType | null) ?? classifyEntity(firmName)
   const pendingCount = pendingPeople.filter(p => p.status === 'pending').length
+
+  async function handleSetType(type: EntityType) {
+    await onFirmDecision(firm.id, { entity_type: type })
+    setEditingType(false)
+  }
 
   async function saveIndividuals() {
     setSaving(true)
@@ -61,9 +67,30 @@ export default function FirmGroup({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-gray-900">{firmName}</h3>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_STYLE[entityType]}`}>
-                {entityType.charAt(0).toUpperCase() + entityType.slice(1)}
-              </span>
+              {editingType ? (
+                <div className="flex gap-1">
+                  {(['person', 'company', 'venue'] as EntityType[]).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => handleSetType(t)}
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        entityType === t ? TYPE_STYLE[t] : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  ))}
+                  <button onClick={() => setEditingType(false)} className="text-xs text-gray-400 px-1">✕</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingType(true)}
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_STYLE[entityType]}`}
+                  title="Tap to change type"
+                >
+                  {entityType.charAt(0).toUpperCase() + entityType.slice(1)} ▾
+                </button>
+              )}
               {isFirmApproved
                 ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Approved</span>
                 : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Needs review</span>

@@ -27,6 +27,7 @@ export interface Cluster {
   notes: string | null
   role: 'solo' | 'freelancer' | null
   primary_firm_id: string | null
+  entity_type: 'person' | 'company' | 'venue' | null
 }
 
 export default function PlannerNormalizationPage() {

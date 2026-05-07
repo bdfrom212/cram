@@ -76,6 +76,7 @@ export default function PlannerClusterCard({
   const [merging, setMerging] = useState(false)
   const [freelancerPanelOpen, setFreelancerPanelOpen] = useState(false)
   const [primaryFirmSearch, setPrimaryFirmSearch] = useState('')
+  const [editingType, setEditingType] = useState(false)
 
   const rawEvents = cluster.source_events ?? []
   const allEvents: SourceEvent[] = Array.isArray(rawEvents) ? rawEvents : [rawEvents as SourceEvent]
@@ -126,7 +127,7 @@ export default function PlannerClusterCard({
     return allClusters.find(c => c.id === cluster.primary_firm_id) ?? null
   }, [cluster.primary_firm_id, allClusters])
 
-  const entityType = classifyEntity(displayName)
+  const entityType: EntityType = (cluster.entity_type as EntityType | null) ?? classifyEntity(displayName)
   const isDone = cluster.status !== 'pending'
 
   function buildApproveFields() {
@@ -174,6 +175,11 @@ export default function PlannerClusterCard({
     await onAbsorb(cluster.id, parentId)
     setSaving(false)
     setAbsorbing(false)
+  }
+
+  async function handleSetType(type: EntityType) {
+    await onDecision(cluster.id, { entity_type: type })
+    setEditingType(false)
   }
 
   async function handleMergeInto(parentId: string) {
@@ -231,9 +237,30 @@ export default function PlannerClusterCard({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap text-sm text-gray-500 mb-3">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_STYLE[entityType]}`}>
-            {TYPE_LABEL[entityType]}
-          </span>
+          {editingType ? (
+            <div className="flex gap-1">
+              {(['person', 'company', 'venue'] as EntityType[]).map(t => (
+                <button
+                  key={t}
+                  onClick={() => handleSetType(t)}
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    entityType === t ? TYPE_STYLE[t] : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {TYPE_LABEL[t]}
+                </button>
+              ))}
+              <button onClick={() => setEditingType(false)} className="text-xs text-gray-400 px-1">✕</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingType(true)}
+              className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_STYLE[entityType]}`}
+              title="Tap to change type"
+            >
+              {TYPE_LABEL[entityType]} ▾
+            </button>
+          )}
           {cluster.role === 'solo' && (
             <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">Solo planner</span>
           )}
