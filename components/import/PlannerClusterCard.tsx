@@ -318,7 +318,7 @@ export default function PlannerClusterCard({
         {/* Source events */}
         {events.length > 0 && (
           <div className="mb-3">
-            <p className="text-xs text-gray-400 mb-1.5">Weddings you shot with them</p>
+            <p className="text-xs text-gray-400 mb-1.5">Events with this contact</p>
             <div className="space-y-2">
               {visibleEvents.map((ev, i) => {
                 const note = extractRawNote(ev.raw_co)
