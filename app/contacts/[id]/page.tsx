@@ -4,23 +4,24 @@ import Link from 'next/link'
 import Image from 'next/image'
 import AddNoteModal from '@/components/AddNoteModal'
 import DeleteContactButton from '@/components/DeleteContactButton'
+import MergeContactButton from '@/components/MergeContactButton'
 import type { ContactWithEvents } from '@/types'
 
 export default async function ContactDossierPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: contact } = await supabase
-    .from('contacts')
-    .select(`
-      *,
-      key_people(*),
-      email_log(*),
-      notes(*),
-      event_contacts(role, event:events(*))
-    `)
-    .eq('id', id)
-    .single()
+  const [{ data: contact }, { data: allContacts }] = await Promise.all([
+    supabase
+      .from('contacts')
+      .select('*, key_people(*), email_log(*), notes(*), event_contacts(role, event:events(*))')
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('contacts')
+      .select('id, name, company, role')
+      .order('name'),
+  ])
 
   if (!contact) notFound()
 
@@ -210,8 +211,15 @@ export default async function ContactDossierPage({ params }: { params: Promise<{
         )}
 
         {/* Actions */}
-        <div className="border-t border-gray-100 px-5 py-4 flex gap-3 flex-wrap">
-          <AddNoteModal contactId={id} />
+        <div className="border-t border-gray-100 px-5 py-4 space-y-3">
+          <div className="flex gap-3 flex-wrap">
+            <AddNoteModal contactId={id} />
+          </div>
+          <MergeContactButton
+            contactId={id}
+            contactName={c.name}
+            allContacts={allContacts ?? []}
+          />
           {events.length > 1 && (
             <details className="w-full">
               <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-900 select-none">
