@@ -18,10 +18,19 @@ export default function Nav() {
     router.refresh()
   }
 
+  const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME
+    ? new Date(process.env.NEXT_PUBLIC_BUILD_TIME).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+      })
+    : 'dev build'
+  const commitSha = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7)
+  const buildLabel = commitSha ? `${buildTime} · ${commitSha}` : buildTime
+
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
       <div className="max-w-2xl mx-auto px-4 h-12 flex items-center justify-between">
-        <Link href="/" className="font-semibold text-gray-900 tracking-tight">
+        <Link href="/" className="font-semibold text-gray-900 tracking-tight" title={`Built: ${buildLabel}`}>
           cram
         </Link>
         <div className="flex items-center gap-4 text-sm">
