@@ -74,6 +74,8 @@ export default function PlannerClusterCard({
   const [absorbing, setAbsorbing] = useState(false)
   const [absorbSearch, setAbsorbSearch] = useState('')
   const [merging, setMerging] = useState(false)
+  const [freelancerPanelOpen, setFreelancerPanelOpen] = useState(false)
+  const [primaryFirmSearch, setPrimaryFirmSearch] = useState('')
 
   const rawEvents = cluster.source_events ?? []
   const allEvents: SourceEvent[] = Array.isArray(rawEvents) ? rawEvents : [rawEvents as SourceEvent]
@@ -109,6 +111,21 @@ export default function PlannerClusterCard({
       .slice(0, 8)
   }, [absorbSearch, allClusters, cluster.id])
 
+  const primaryFirmResults = useMemo(() => {
+    if (!primaryFirmSearch.trim()) return []
+    const q = primaryFirmSearch.toLowerCase()
+    return allClusters
+      .filter(c => c.id !== cluster.id && c.status !== 'skip' &&
+        (c.proposed_name.toLowerCase().includes(q) || (c.canonical_name ?? '').toLowerCase().includes(q))
+      )
+      .slice(0, 8)
+  }, [primaryFirmSearch, allClusters, cluster.id])
+
+  const primaryFirm = useMemo(() => {
+    if (!cluster.primary_firm_id) return null
+    return allClusters.find(c => c.id === cluster.primary_firm_id) ?? null
+  }, [cluster.primary_firm_id, allClusters])
+
   const entityType = classifyEntity(displayName)
   const isDone = cluster.status !== 'pending'
 
@@ -128,11 +145,16 @@ export default function PlannerClusterCard({
     setEditing(false)
   }
 
-  async function handleApproveWithRole(role: 'solo' | 'freelancer') {
+  async function handleApproveWithRole(role: 'solo' | 'freelancer', primaryFirmId?: string | null) {
     setSaving(true)
-    await onDecision(cluster.id, { ...buildApproveFields(), role })
+    await onDecision(cluster.id, {
+      ...buildApproveFields(),
+      role,
+      primary_firm_id: primaryFirmId ?? null,
+    })
     setSaving(false)
     setEditing(false)
+    setFreelancerPanelOpen(false)
   }
 
   async function handleSkip() {
@@ -217,6 +239,11 @@ export default function PlannerClusterCard({
           )}
           {cluster.role === 'freelancer' && (
             <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">Freelancer</span>
+          )}
+          {cluster.role === 'freelancer' && primaryFirm && (
+            <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
+              ↳ {primaryFirm.canonical_name ?? primaryFirm.proposed_name}
+            </span>
           )}
           <span>{cluster.event_count} event{cluster.event_count !== 1 ? 's' : ''}</span>
           {cluster.instagram && !editing && <span className="text-blue-500">@{cluster.instagram}</span>}
@@ -378,8 +405,53 @@ export default function PlannerClusterCard({
           </div>
         )}
 
+        {/* Freelancer primary firm panel */}
+        {freelancerPanelOpen && (
+          <div className="mb-3 border border-indigo-200 rounded-lg p-3 bg-indigo-50">
+            <p className="text-xs text-indigo-700 font-medium mb-0.5">What's {displayName}'s primary firm?</p>
+            <p className="text-xs text-indigo-400 mb-2">The firm they work with most — optional if truly independent</p>
+            <input
+              className="text-sm w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gray-400 bg-white mb-2"
+              placeholder="Search firm name..."
+              value={primaryFirmSearch}
+              onChange={e => setPrimaryFirmSearch(e.target.value)}
+              autoFocus
+            />
+            {primaryFirmResults.length > 0 && (
+              <ul className="space-y-1 mb-2">
+                {primaryFirmResults.map(firm => (
+                  <li key={firm.id}>
+                    <button
+                      onClick={() => handleApproveWithRole('freelancer', firm.id)}
+                      className="w-full text-left text-sm px-3 py-2 rounded-lg bg-white hover:bg-indigo-100 border border-gray-200"
+                    >
+                      <span className="font-medium">{firm.canonical_name ?? firm.proposed_name}</span>
+                      <span className="text-gray-400 ml-2">{firm.event_count} events</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleApproveWithRole('freelancer', null)}
+                disabled={saving}
+                className="flex-1 text-sm py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50"
+              >
+                {saving ? '...' : 'No primary firm — approve anyway'}
+              </button>
+              <button
+                onClick={() => setFreelancerPanelOpen(false)}
+                className="text-sm px-4 py-2 border border-gray-200 rounded-lg text-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
-        {!isDone && !absorbing && !merging && (
+        {!isDone && !absorbing && !merging && !freelancerPanelOpen && (
           <div className="space-y-2">
             {entityType === 'person' ? (
               <>
@@ -394,11 +466,11 @@ export default function PlannerClusterCard({
                       {saving ? '...' : 'Save as solo planner'}
                     </button>
                     <button
-                      onClick={() => handleApproveWithRole('freelancer')}
+                      onClick={() => setFreelancerPanelOpen(true)}
                       disabled={saving}
                       className="flex-1 bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg disabled:opacity-50"
                     >
-                      {saving ? '...' : 'Save as freelancer'}
+                      Save as freelancer
                     </button>
                   </div>
                 ) : (
@@ -412,12 +484,12 @@ export default function PlannerClusterCard({
                       <div className="text-xs text-gray-300 mt-0.5">Person = their own firm</div>
                     </button>
                     <button
-                      onClick={() => handleApproveWithRole('freelancer')}
+                      onClick={() => setFreelancerPanelOpen(true)}
                       disabled={saving}
                       className="bg-gray-700 text-white text-sm py-3 rounded-lg disabled:opacity-50 text-left px-3"
                     >
                       <div className="font-semibold">Freelancer</div>
-                      <div className="text-xs text-gray-300 mt-0.5">Works various firms</div>
+                      <div className="text-xs text-gray-300 mt-0.5">Has a base firm</div>
                     </button>
                   </div>
                 )}

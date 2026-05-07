@@ -26,6 +26,7 @@ export interface Cluster {
   status: 'pending' | 'approved' | 'split' | 'skip'
   notes: string | null
   role: 'solo' | 'freelancer' | null
+  primary_firm_id: string | null
 }
 
 export default function PlannerNormalizationPage() {
