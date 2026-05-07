@@ -8,6 +8,9 @@ export interface SourceEvent {
   raw_co: string
   couple: string
   date: string
+  venue?: string
+  source?: 'vsco' | 'tave'
+  field?: 'planners_co' | 'planner_contact'
 }
 
 export interface Cluster {

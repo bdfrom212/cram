@@ -17,7 +17,29 @@ function formatYear(dateStr: string) {
 }
 
 function formatCouple(couple: string) {
-  return couple.replace(/^inq:\s*/i, '').trim()
+  // Strip "inq: " prefix and verbose date suffix like "on Sunday, March 17th, 2013"
+  return couple
+    .replace(/^inq:\s*/i, '')
+    .replace(/\s+on\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday),?.*/i, '')
+    .trim()
+}
+
+function extractRawNote(rawCo: string, firmName: string) {
+  // Pull out parenthetical notes from raw_co, e.g. "(fired JoAnn Gregoli)"
+  const match = rawCo.match(/\(([^)]+)\)/)
+  return match ? match[1] : null
+}
+
+// Deduplicate events: same date = same wedding, prefer entry with venue
+function deduplicateEvents(events: SourceEvent[]): SourceEvent[] {
+  const seen = new Map<string, SourceEvent>()
+  for (const ev of events) {
+    const key = ev.date
+    if (!seen.has(key) || (!seen.get(key)!.venue && ev.venue)) {
+      seen.set(key, ev)
+    }
+  }
+  return Array.from(seen.values()).sort((a, b) => b.date.localeCompare(a.date))
 }
 
 // Heuristic: does this look like a person name rather than a company name?
@@ -40,7 +62,8 @@ export default function PlannerClusterCard({
   const [merging, setMerging] = useState(false)
 
   const rawEvents = cluster.source_events ?? []
-  const events: SourceEvent[] = Array.isArray(rawEvents) ? rawEvents : [rawEvents as SourceEvent]
+  const allEvents: SourceEvent[] = Array.isArray(rawEvents) ? rawEvents : [rawEvents as SourceEvent]
+  const events = deduplicateEvents(allEvents)
   const visibleEvents = showAllEvents ? events : events.slice(0, 5)
 
   const displayName = cluster.canonical_name ?? cluster.proposed_name
@@ -213,13 +236,24 @@ export default function PlannerClusterCard({
         {events.length > 0 && (
           <div className="mb-3">
             <p className="text-xs text-gray-400 mb-1.5">Weddings you shot with them</p>
-            <div className="space-y-1">
-              {visibleEvents.map((ev, i) => (
-                <div key={i} className="flex items-baseline gap-2 text-sm">
-                  <span className="text-gray-400 text-xs tabular-nums flex-shrink-0 w-8">{formatYear(ev.date)}</span>
-                  <span className="text-gray-700">{formatCouple(ev.couple)}</span>
-                </div>
-              ))}
+            <div className="space-y-2">
+              {visibleEvents.map((ev, i) => {
+                const note = extractRawNote(ev.raw_co, displayName)
+                return (
+                  <div key={i} className="flex gap-2 text-sm">
+                    <span className="text-gray-400 text-xs tabular-nums flex-shrink-0 w-8 pt-0.5">{formatYear(ev.date)}</span>
+                    <div>
+                      <span className="text-gray-700">{formatCouple(ev.couple)}</span>
+                      {ev.venue && (
+                        <span className="text-gray-400 ml-1.5">· {ev.venue}</span>
+                      )}
+                      {note && (
+                        <span className="block text-xs text-amber-600 mt-0.5">Note: {note}</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
             {events.length > 5 && (
               <button
