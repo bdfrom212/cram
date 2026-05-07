@@ -27,40 +27,41 @@ export default async function ImportPage() {
   const done = counts.approved + counts.split + counts.skip
   const plannersDone = total > 0 && counts.pending === 0
 
-  const stages = [
+  type StageStatus = 'complete' | 'active' | 'upcoming' | 'locked'
+  const stages: { number: number; title: string; description: string; status: StageStatus; href: string | null }[] = [
     {
       number: 1,
       title: 'Schema Updated',
       description: 'Database prepared for import',
-      status: 'complete' as const,
+      status: 'complete',
       href: null,
     },
     {
       number: 2,
       title: 'Planner Normalization',
       description: `${done} of ${total} planner firms reviewed`,
-      status: plannersDone ? 'complete' as const : counts.approved > 0 ? 'active' as const : 'active' as const,
+      status: plannersDone ? 'complete' : 'active',
       href: '/import/planners',
     },
     {
       number: 3,
       title: 'Event Import',
-      description: `${0} events staged`,
-      status: plannersDone ? 'upcoming' as const : 'locked' as const,
+      description: '0 events staged',
+      status: plannersDone ? 'upcoming' : 'locked',
       href: null,
     },
     {
       number: 4,
       title: 'Contact Import',
       description: 'Clients, planners, and venues',
-      status: 'locked' as const,
+      status: 'locked',
       href: null,
     },
     {
       number: 5,
       title: 'Review & Finalize',
       description: 'Approve and write to database',
-      status: 'locked' as const,
+      status: 'locked',
       href: null,
     },
   ]
