@@ -12,6 +12,7 @@ export interface SourceEvent {
   venue?: string
   source?: 'vsco' | 'tave'
   field?: 'planners_co' | 'planner_contact'
+  job_id?: string | null
 }
 
 export interface Cluster {

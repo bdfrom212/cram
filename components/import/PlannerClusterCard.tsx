@@ -326,7 +326,18 @@ export default function PlannerClusterCard({
                   <div key={i} className="flex gap-2 text-sm">
                     <span className="text-gray-400 text-xs tabular-nums flex-shrink-0 w-8 pt-0.5">{formatYear(ev.date)}</span>
                     <div className="min-w-0">
-                      <span className="text-gray-700">{formatCouple(ev.couple)}</span>
+                      {ev.job_id ? (
+                        <a
+                          href={`https://tave.app/jobs/view/${ev.job_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gray-700 hover:text-blue-600 hover:underline"
+                        >
+                          {formatCouple(ev.couple)}
+                        </a>
+                      ) : (
+                        <span className="text-gray-700">{formatCouple(ev.couple)}</span>
+                      )}
                       {ev.venue && (
                         <span className="text-gray-400 ml-1.5">· {ev.venue}</span>
                       )}

@@ -24,7 +24,16 @@ $tave = Import-Csv "$PSScriptRoot/../data/tave_anniversary_raw.csv"
 
 $byPlanner = @{}
 
-function AddEvent($firmKey, $rawCo, $couple, $date, $venue, $source, $field) {
+function GetJobId($row) {
+    foreach ($fieldName in @('Job #', 'Job ID', 'Job Id', 'Job Number', 'ID', 'Job id')) {
+        if ($row.PSObject.Properties.Name -contains $fieldName -and $row.$fieldName) {
+            return ($row.$fieldName).Trim()
+        }
+    }
+    return $null
+}
+
+function AddEvent($firmKey, $rawCo, $couple, $date, $venue, $source, $field, $jobId) {
     if (-not $firmKey -or $firmKey.Length -lt 2) { return }
     if (-not $byPlanner.ContainsKey($firmKey)) {
         $byPlanner[$firmKey] = @{ individuals = @{}; events = @() }
@@ -36,6 +45,7 @@ function AddEvent($firmKey, $rawCo, $couple, $date, $venue, $source, $field) {
         venue   = (Decode $venue)
         source  = $source
         field   = $field
+        job_id  = $jobId
     }
 }
 
@@ -65,12 +75,13 @@ foreach ($row in $vsco) {
     $couple = $row.'Job Name'
     $date   = $row.'Job Date'
     $venue  = $row.$venueCol
+    $jobId  = GetJobId $row
 
     $rawCo = $row.$coCol
     if ($rawCo -and $rawCo.Trim() -and $rawCo.Trim() -ne 'Unknown Person') {
         $firmKey = NormCo $rawCo
         if ($firmKey.Length -gt 1) {
-            AddEvent $firmKey $rawCo $couple $date $venue 'vsco' 'planners_co'
+            AddEvent $firmKey $rawCo $couple $date $venue 'vsco' 'planners_co' $jobId
             ExtractIndividuals $rawCo $row.$pcCol $firmKey
         }
     }
@@ -83,7 +94,7 @@ foreach ($row in $vsco) {
             foreach ($c in $contacts) {
                 $cKey = $c -replace '@\S+', '' -replace '\bX\b', '' | ForEach-Object { $_.Trim() }
                 if ($cKey.Length -gt 1) {
-                    AddEvent $cKey $c $couple $date $venue 'vsco' 'planner_contact'
+                    AddEvent $cKey $c $couple $date $venue 'vsco' 'planner_contact' $jobId
                 }
             }
         }
@@ -99,12 +110,13 @@ foreach ($row in $tave) {
     $couple = $row.'Job Name'
     $date   = $row.'Job Date'
     $venue  = $row.$taveVenueCol
+    $jobId  = GetJobId $row
 
     $rawCo = $row.$taveCoCol
     if ($rawCo -and $rawCo.Trim() -and $rawCo.Trim() -ne 'Unknown Person') {
         $firmKey = NormCo $rawCo
         if ($firmKey.Length -gt 1) {
-            AddEvent $firmKey $rawCo $couple $date $venue 'tave' 'planners_co'
+            AddEvent $firmKey $rawCo $couple $date $venue 'tave' 'planners_co' $jobId
             ExtractIndividuals $rawCo $row.$tavePcCol $firmKey
         }
     }
