@@ -25,6 +25,7 @@ export interface Cluster {
   source_events: SourceEvent[]
   status: 'pending' | 'approved' | 'split' | 'skip'
   notes: string | null
+  role: 'solo' | 'freelancer' | null
 }
 
 export default function PlannerNormalizationPage() {
