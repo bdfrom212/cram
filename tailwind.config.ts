@@ -14,6 +14,12 @@ const config: Config = {
       },
     },
   },
+  safelist: [
+    // Entity type badges — used via dynamic lookup, must be safelisted
+    'bg-purple-600', 'text-white',
+    'bg-blue-600',
+    'bg-emerald-600',
+  ],
   plugins: [],
 };
 export default config;

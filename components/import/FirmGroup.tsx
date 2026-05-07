@@ -15,9 +15,9 @@ function classifyEntity(name: string): EntityType {
 }
 
 const TYPE_STYLE: Record<EntityType, string> = {
-  person: 'bg-purple-100 text-purple-700',
-  company: 'bg-blue-100 text-blue-700',
-  venue: 'bg-emerald-100 text-emerald-700',
+  person: 'bg-purple-600 text-white',
+  company: 'bg-blue-600 text-white',
+  venue: 'bg-emerald-600 text-white',
 }
 
 interface Props {
