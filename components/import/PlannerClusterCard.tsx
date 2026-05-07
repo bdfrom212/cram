@@ -7,6 +7,7 @@ interface Props {
   cluster: Cluster
   allClusters: Cluster[]
   personToFirm: Record<string, { id: string; name: string }>
+  parentFirmName?: string  // set when rendered inside a FirmGroup
   onDecision: (id: string, decision: Partial<Cluster>) => Promise<void>
   onAbsorb: (personClusterId: string, parentClusterId: string) => Promise<void>
   onMerge: (duplicateId: string, parentId: string) => Promise<void>
@@ -49,7 +50,7 @@ function looksLikePerson(name: string) {
 }
 
 export default function PlannerClusterCard({
-  cluster, allClusters, personToFirm, onDecision, onAbsorb, onMerge
+  cluster, allClusters, personToFirm, parentFirmName, onDecision, onAbsorb, onMerge
 }: Props) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(cluster.canonical_name ?? cluster.proposed_name)
@@ -144,7 +145,7 @@ export default function PlannerClusterCard({
     <div className={`border rounded-xl mb-4 overflow-hidden ${isDone ? 'opacity-60' : ''}`}>
 
       {/* Context banners — shown when we already know something useful */}
-      {knownParent && !isDone && (
+      {knownParent && !isDone && !parentFirmName && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-start gap-2">
           <span className="text-amber-600 text-sm font-medium flex-shrink-0">Appeared on a job with:</span>
           <span className="text-amber-800 text-sm">{knownParent.name}</span>
@@ -371,7 +372,8 @@ export default function PlannerClusterCard({
               <button
                 onClick={() => {
                   setAbsorbing(true)
-                  if (knownParent) setAbsorbSearch(knownParent.name)
+                  if (parentFirmName) setAbsorbSearch(parentFirmName)
+                  else if (knownParent) setAbsorbSearch(knownParent.name)
                 }}
                 disabled={saving}
                 className="flex-1 text-sm py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50"
