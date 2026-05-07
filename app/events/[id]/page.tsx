@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import DeleteEventButton from '@/components/DeleteEventButton'
+import BriefSection from '@/components/BriefSection'
+import { getLatestBrief } from '@/lib/agents/store'
 
 interface EventContactRow {
   role: string
@@ -13,11 +15,14 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: event } = await supabase
-    .from('events')
-    .select('*, event_contacts(role, contact:contacts(id, name, company, photo_url))')
-    .eq('id', id)
-    .single()
+  const [{ data: event }, existingBrief] = await Promise.all([
+    supabase
+      .from('events')
+      .select('*, event_contacts(role, contact:contacts(id, name, company, photo_url))')
+      .eq('id', id)
+      .single(),
+    getLatestBrief(id).catch(() => null),
+  ])
 
   if (!event) notFound()
 
@@ -81,6 +86,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             <p className="text-sm text-gray-700 whitespace-pre-line">{event.notes}</p>
           </div>
         )}
+
+        <BriefSection eventId={id} initialBrief={existingBrief} />
       </div>
     </div>
   )
