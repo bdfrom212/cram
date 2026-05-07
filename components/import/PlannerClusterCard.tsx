@@ -43,10 +43,26 @@ function deduplicateEvents(events: SourceEvent[]): SourceEvent[] {
   return Array.from(seen.values()).sort((a, b) => b.date.localeCompare(a.date))
 }
 
-// Heuristic: does this look like a person name rather than a company name?
-function looksLikePerson(name: string) {
-  const companyWords = /\b(events?|co\.?|company|group|productions?|studio|planning|associates?|llc|inc\.?|design|collective|weddings?|celebrations?|occasions?|creations?|agency|management|lifestyle|experiences?|entertainment|services?)\b/i
-  return !companyWords.test(name)
+type EntityType = 'person' | 'company' | 'venue'
+
+function classifyEntity(name: string): EntityType {
+  const venueWords = /\b(plaza|hotel|estate|gardens?|club|hall|ballroom|manor|house|farm|inn|vineyard|country|resort|room|loft|space|pavilion|terrace|rooftop|warehouse|library|museum|gallery|park|lawn|brewery|winery|restaurant|lounge|suite|palace|castle|chateau|penthouse|barn|chapel|cathedral|sanctuary|amphitheater|yacht|marina|beach)\b/i
+  const companyWords = /\b(events?|co\.?|company|group|productions?|studio|planning|associates?|llc|ltd\.?|inc\.?|design|collective|weddings?|celebrations?|occasions?|creations?|agency|management|lifestyle|experiences?|entertainment|services?|international|worldwide|consulting|creative)\b/i
+  if (venueWords.test(name)) return 'venue'
+  if (companyWords.test(name)) return 'company'
+  return 'person'
+}
+
+const TYPE_LABEL: Record<EntityType, string> = {
+  person: 'Person',
+  company: 'Company',
+  venue: 'Venue',
+}
+
+const TYPE_STYLE: Record<EntityType, string> = {
+  person: 'bg-purple-100 text-purple-700',
+  company: 'bg-blue-100 text-blue-700',
+  venue: 'bg-emerald-100 text-emerald-700',
 }
 
 export default function PlannerClusterCard({
@@ -100,7 +116,7 @@ export default function PlannerClusterCard({
       .slice(0, 8)
   }, [absorbSearch, allClusters, cluster.id])
 
-  const isPerson = looksLikePerson(displayName)
+  const entityType = classifyEntity(displayName)
   const isDone = cluster.status !== 'pending'
 
   async function handleApprove() {
@@ -188,9 +204,11 @@ export default function PlannerClusterCard({
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
+        <div className="flex items-center gap-2 flex-wrap text-sm text-gray-500 mb-3">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_STYLE[entityType]}`}>
+            {TYPE_LABEL[entityType]}
+          </span>
           <span>{cluster.event_count} event{cluster.event_count !== 1 ? 's' : ''}</span>
-          {isPerson && !isDone && <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">Looks like a person</span>}
           {cluster.instagram && !editing && <span className="text-blue-500">@{cluster.instagram}</span>}
           {cluster.notes && isDone && <span className="text-gray-400 text-xs italic truncate">{cluster.notes}</span>}
         </div>

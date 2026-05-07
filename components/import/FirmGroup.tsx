@@ -4,6 +4,22 @@ import { useState } from 'react'
 import type { Cluster } from '@/app/import/planners/page'
 import PlannerClusterCard from './PlannerClusterCard'
 
+type EntityType = 'person' | 'company' | 'venue'
+
+function classifyEntity(name: string): EntityType {
+  const venueWords = /\b(plaza|hotel|estate|gardens?|club|hall|ballroom|manor|house|farm|inn|vineyard|country|resort|room|loft|space|pavilion|terrace|rooftop|warehouse|library|museum|gallery|park|lawn|brewery|winery|restaurant|lounge|suite|palace|castle|chateau|penthouse|barn|chapel|cathedral|sanctuary|amphitheater|yacht|marina|beach)\b/i
+  const companyWords = /\b(events?|co\.?|company|group|productions?|studio|planning|associates?|llc|ltd\.?|inc\.?|design|collective|weddings?|celebrations?|occasions?|creations?|agency|management|lifestyle|experiences?|entertainment|services?|international|worldwide|consulting|creative)\b/i
+  if (venueWords.test(name)) return 'venue'
+  if (companyWords.test(name)) return 'company'
+  return 'person'
+}
+
+const TYPE_STYLE: Record<EntityType, string> = {
+  person: 'bg-purple-100 text-purple-700',
+  company: 'bg-blue-100 text-blue-700',
+  venue: 'bg-emerald-100 text-emerald-700',
+}
+
 interface Props {
   firm: Cluster
   pendingPeople: Cluster[]
@@ -26,6 +42,7 @@ export default function FirmGroup({
 
   const firmName = firm.canonical_name ?? firm.proposed_name
   const isFirmApproved = firm.status === 'approved'
+  const entityType = classifyEntity(firmName)
   const pendingCount = pendingPeople.filter(p => p.status === 'pending').length
 
   async function saveIndividuals() {
@@ -44,6 +61,9 @@ export default function FirmGroup({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-gray-900">{firmName}</h3>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_STYLE[entityType]}`}>
+                {entityType.charAt(0).toUpperCase() + entityType.slice(1)}
+              </span>
               {isFirmApproved
                 ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Approved</span>
                 : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Needs review</span>
