@@ -44,7 +44,9 @@ export default function PlannerClusterCard({ cluster, onDecision }: Props) {
   const [saving, setSaving] = useState(false)
   const [showAllEvents, setShowAllEvents] = useState(false)
 
-  const events = cluster.source_events ?? []
+  // Guard: Supabase may return a single object instead of array for 1-event clusters
+  const rawEvents = cluster.source_events ?? []
+  const events = Array.isArray(rawEvents) ? rawEvents : [rawEvents]
   const visibleEvents = showAllEvents ? events : events.slice(0, 5)
   const hasMoreEvents = events.length > 5
 
