@@ -15,11 +15,20 @@ export async function PATCH(
   )
 
   const body = await request.json()
-  const { canonical_name, individuals, instagram, status, notes } = body
+  const { canonical_name, individuals, instagram, status, notes, raw_strings, event_count } = body
+
+  const updateFields: Record<string, unknown> = {}
+  if (canonical_name !== undefined) updateFields.canonical_name = canonical_name
+  if (individuals !== undefined) updateFields.individuals = individuals
+  if (instagram !== undefined) updateFields.instagram = instagram
+  if (status !== undefined) updateFields.status = status
+  if (notes !== undefined) updateFields.notes = notes
+  if (raw_strings !== undefined) updateFields.raw_strings = raw_strings
+  if (event_count !== undefined) updateFields.event_count = event_count
 
   const { data, error } = await supabase
     .from('import_planner_clusters')
-    .update({ canonical_name, individuals, instagram, status, notes })
+    .update(updateFields)
     .eq('id', id)
     .select()
     .single()

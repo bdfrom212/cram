@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import PlannerClusterCard from '@/components/import/PlannerClusterCard'
 import Link from 'next/link'
 
-interface SourceEvent {
+export interface SourceEvent {
   raw_co: string
   couple: string
   date: string
 }
 
-interface Cluster {
+export interface Cluster {
   id: string
   raw_strings: string[]
   event_count: number
@@ -25,6 +25,7 @@ interface Cluster {
 
 export default function PlannerNormalizationPage() {
   const [clusters, setClusters] = useState<Cluster[]>([])
+  const [allClusters, setAllClusters] = useState<Cluster[]>([])
   const [filter, setFilter] = useState<'pending' | 'approved' | 'all'>('pending')
   const [loading, setLoading] = useState(true)
   const [counts, setCounts] = useState({ pending: 0, approved: 0, split: 0, skip: 0 })
@@ -40,21 +41,78 @@ export default function PlannerNormalizationPage() {
 
   useEffect(() => { load() }, [load])
 
-  useEffect(() => {
+  // Always keep a full snapshot for lookup purposes (person→firm map, similar firms)
+  const refreshAll = useCallback(() => {
     fetch('/api/import/clusters').then(r => r.json()).then((all: Cluster[]) => {
+      setAllClusters(all)
       const c = { pending: 0, approved: 0, split: 0, skip: 0 }
       all.forEach(cl => { c[cl.status] = (c[cl.status] || 0) + 1 })
       setCounts(c)
     })
-  }, [clusters])
+  }, [])
 
-  async function handleDecision(id: string, decision: Partial<Cluster>) {
+  useEffect(() => { refreshAll() }, [refreshAll, clusters])
+
+  // Build person → firm lookup from all clusters
+  const personToFirm = useMemo(() => {
+    const map: Record<string, { id: string; name: string }> = {}
+    allClusters.forEach(c => {
+      const firmName = c.canonical_name ?? c.proposed_name
+      c.individuals.forEach(person => {
+        map[person.toLowerCase().trim()] = { id: c.id, name: firmName }
+      })
+    })
+    return map
+  }, [allClusters])
+
+  async function patch(id: string, fields: Partial<Cluster>) {
     await fetch(`/api/import/clusters/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(decision),
+      body: JSON.stringify(fields),
     })
+  }
+
+  async function handleDecision(id: string, decision: Partial<Cluster>) {
+    await patch(id, decision)
     setClusters(prev => prev.map(c => c.id === id ? { ...c, ...decision } : c))
+  }
+
+  // Absorb a person cluster into a parent firm's individuals
+  async function handleAbsorb(personClusterId: string, parentClusterId: string) {
+    const personCluster = allClusters.find(c => c.id === personClusterId)!
+    const parentCluster = allClusters.find(c => c.id === parentClusterId)!
+    const personName = personCluster.canonical_name ?? personCluster.proposed_name
+    const parentName = parentCluster.canonical_name ?? parentCluster.proposed_name
+
+    const existingInds = parentCluster.individuals.map(i => i.toLowerCase())
+    const newInds = existingInds.includes(personName.toLowerCase())
+      ? parentCluster.individuals
+      : [...parentCluster.individuals, personName]
+
+    const newRawStrings = Array.from(new Set([...parentCluster.raw_strings, ...personCluster.raw_strings]))
+
+    await patch(parentClusterId, { individuals: newInds, raw_strings: newRawStrings })
+    await handleDecision(personClusterId, { status: 'skip', notes: `Person absorbed into ${parentName}` })
+    refreshAll()
+  }
+
+  // Merge a duplicate firm cluster into a canonical parent
+  async function handleMerge(duplicateId: string, parentId: string) {
+    const dup = allClusters.find(c => c.id === duplicateId)!
+    const parent = allClusters.find(c => c.id === parentId)!
+    const parentName = parent.canonical_name ?? parent.proposed_name
+
+    const newRawStrings = Array.from(new Set([...parent.raw_strings, ...dup.raw_strings]))
+    const newEventCount = parent.event_count + dup.event_count
+    const dupIndividuals = dup.individuals.filter(
+      i => !parent.individuals.map(p => p.toLowerCase()).includes(i.toLowerCase())
+    )
+    const newInds = [...parent.individuals, ...dupIndividuals]
+
+    await patch(parentId, { raw_strings: newRawStrings, event_count: newEventCount, individuals: newInds })
+    await handleDecision(duplicateId, { status: 'skip', notes: `Merged into ${parentName}` })
+    refreshAll()
   }
 
   const total = counts.pending + counts.approved + counts.split + counts.skip
@@ -69,7 +127,7 @@ export default function PlannerNormalizationPage() {
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">Planner Normalization</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Review each planner firm, confirm the name, and identify individual contacts.
+          Review each entry — confirm it's a real firm, link any people to their firm, and skip anything irrelevant.
         </p>
       </div>
 
@@ -111,7 +169,7 @@ export default function PlannerNormalizationPage() {
       ) : clusters.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 text-lg">
-            {filter === 'pending' ? '🎉 All planners reviewed!' : 'Nothing here yet.'}
+            {filter === 'pending' ? 'All planners reviewed!' : 'Nothing here yet.'}
           </p>
           {filter === 'pending' && (
             <Link href="/import" className="mt-4 inline-block text-sm text-gray-600 underline">
@@ -124,7 +182,11 @@ export default function PlannerNormalizationPage() {
           <PlannerClusterCard
             key={cluster.id}
             cluster={cluster}
+            allClusters={allClusters}
+            personToFirm={personToFirm}
             onDecision={handleDecision}
+            onAbsorb={handleAbsorb}
+            onMerge={handleMerge}
           />
         ))
       )}
