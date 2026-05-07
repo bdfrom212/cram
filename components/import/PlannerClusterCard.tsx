@@ -446,7 +446,7 @@ export default function PlannerClusterCard({
         {/* Freelancer primary firm panel */}
         {freelancerPanelOpen && (
           <div className="mb-3 border border-indigo-200 rounded-lg p-3 bg-indigo-50">
-            <p className="text-xs text-indigo-700 font-medium mb-0.5">What's {displayName}'s primary firm?</p>
+            <p className="text-xs text-indigo-700 font-medium mb-0.5">What&apos;s {displayName}&apos;s primary firm?</p>
             <p className="text-xs text-indigo-400 mb-2">The firm they work with most — optional if truly independent</p>
             <input
               className="text-sm w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-gray-400 bg-white mb-2"
