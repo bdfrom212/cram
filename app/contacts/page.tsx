@@ -65,19 +65,20 @@ export default async function ContactsPage({
 
       {planners.length > 0 && <ContactGroup label="Planners" contacts={planners} />}
       {venues.length > 0   && <ContactGroup label="Venues"   contacts={venues} />}
-      {clients.length > 0  && <ContactGroup label="Clients"  contacts={clients} />}
+      {clients.length > 0  && <ContactGroup label="Clients"  contacts={clients} defaultOpen={!!q} />}
       {vendors.length > 0  && <ContactGroup label="Vendors"  contacts={vendors} />}
     </div>
   )
 }
 
-function ContactGroup({ label, contacts }: { label: string; contacts: ContactRow[] }) {
+function ContactGroup({ label, contacts, defaultOpen = true }: { label: string; contacts: ContactRow[]; defaultOpen?: boolean }) {
   return (
-    <section>
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-        {label} ({contacts.length})
-      </h2>
-      <div className="space-y-1">
+    <details open={defaultOpen}>
+      <summary className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 cursor-pointer select-none list-none flex items-center justify-between py-1">
+        <span>{label} ({contacts.length})</span>
+        <span className="text-gray-300">▾</span>
+      </summary>
+      <div className="space-y-1 mt-1">
         {contacts.map(c => {
           const eventCount = c.event_contacts?.length ?? 0
           return (
@@ -103,6 +104,6 @@ function ContactGroup({ label, contacts }: { label: string; contacts: ContactRow
           )
         })}
       </div>
-    </section>
+    </details>
   )
 }
