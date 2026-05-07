@@ -146,7 +146,7 @@ export default function PlannerClusterCard({
       {/* Context banners — shown when we already know something useful */}
       {knownParent && !isDone && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-start gap-2">
-          <span className="text-amber-600 text-sm font-medium flex-shrink-0">Already listed under:</span>
+          <span className="text-amber-600 text-sm font-medium flex-shrink-0">Appeared on a job with:</span>
           <span className="text-amber-800 text-sm">{knownParent.name}</span>
         </div>
       )}
