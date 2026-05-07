@@ -37,6 +37,12 @@ export default function Nav() {
           >
             Events
           </Link>
+          <Link
+            href="/import"
+            className={`${pathname.startsWith('/import') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Import
+          </Link>
           <button
             onClick={signOut}
             className="text-gray-400 hover:text-gray-600"

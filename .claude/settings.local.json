@@ -9,7 +9,10 @@
       "Bash(git commit -m 'remove accidental file *)",
       "Bash(git remote *)",
       "Bash(git branch *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "mcp__claude_ai_Google_Drive__read_file_content",
+      "Bash(curl *)"
     ]
   }
 }

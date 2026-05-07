@@ -4,7 +4,7 @@ CREATE TABLE contacts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   company TEXT,
-  role TEXT CHECK (role IN ('planner', 'client', 'vendor')) DEFAULT 'planner',
+  role TEXT CHECK (role IN ('planner', 'client', 'vendor', 'venue')) DEFAULT 'planner',
   email TEXT,
   phone TEXT,
   website TEXT,
@@ -14,6 +14,8 @@ CREATE TABLE contacts (
   personal_notes TEXT,
   last_contact_date DATE,
   gmail_sync_enabled BOOLEAN DEFAULT false,
+  freelancer BOOLEAN DEFAULT false,
+  import_source TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -27,6 +29,7 @@ CREATE TABLE events (
   venue_state TEXT,
   notes TEXT,
   tags TEXT[] DEFAULT '{}',
+  import_source TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -34,7 +37,8 @@ CREATE TABLE events (
 CREATE TABLE event_contacts (
   event_id UUID REFERENCES events(id) ON DELETE CASCADE,
   contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
-  role TEXT CHECK (role IN ('planner', 'client', 'coordinator', 'vendor')) DEFAULT 'planner',
+  role TEXT CHECK (role IN ('planner', 'client', 'coordinator', 'vendor', 'venue')) DEFAULT 'planner',
+  company_context TEXT,
   PRIMARY KEY (event_id, contact_id)
 );
 
