@@ -243,11 +243,14 @@ export default function PlannerClusterCard({
                 return (
                   <div key={i} className="flex gap-2 text-sm">
                     <span className="text-gray-400 text-xs tabular-nums flex-shrink-0 w-8 pt-0.5">{formatYear(ev.date)}</span>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-gray-700">{formatCouple(ev.couple)}</span>
                       {ev.venue && (
                         <span className="text-gray-400 ml-1.5">· {ev.venue}</span>
                       )}
+                      <span className="ml-1.5 text-xs text-gray-300">
+                        [{ev.source ?? 'vsco'} / {ev.field === 'planner_contact' ? 'contact field' : 'company field'}]
+                      </span>
                       {note && (
                         <span className="block text-xs text-amber-600 mt-0.5">Note: {note}</span>
                       )}
