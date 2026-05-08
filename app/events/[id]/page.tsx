@@ -5,6 +5,7 @@ import Image from 'next/image'
 import DeleteEventButton from '@/components/DeleteEventButton'
 import BriefSection from '@/components/BriefSection'
 import ResearchSection from '@/components/ResearchSection'
+import SophiaSection from '@/components/SophiaSection'
 import { getLatestBrief } from '@/lib/agents/store'
 
 interface EventContactRow {
@@ -16,7 +17,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: event }, existingBrief, existingResearch] = await Promise.all([
+  const [{ data: event }, existingBrief, existingResearch, existingContent] = await Promise.all([
     supabase
       .from('events')
       .select('*, event_contacts(role, contact:contacts(id, name, company, photo_url))')
@@ -24,6 +25,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       .single(),
     getLatestBrief(id).catch(() => null),
     getLatestBrief(id, 'researcher').catch(() => null),
+    getLatestBrief(id, 'publicist').catch(() => null),
   ])
 
   if (!event) notFound()
@@ -91,6 +93,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
         <BriefSection eventId={id} initialBrief={existingBrief} />
         <ResearchSection eventId={id} initialBrief={existingResearch} />
+        <SophiaSection eventId={id} initialBrief={existingContent} />
       </div>
     </div>
   )

@@ -47,6 +47,18 @@ export default function Nav() {
             Events
           </Link>
           <Link
+            href="/grace"
+            className={`${pathname.startsWith('/grace') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Grace
+          </Link>
+          <Link
+            href="/updates"
+            className={`${pathname.startsWith('/updates') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Updates
+          </Link>
+          <Link
             href="/import"
             className={`${pathname.startsWith('/import') ? 'text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-900'}`}
           >

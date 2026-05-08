@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export interface Brief {
   id: string
-  event_id: string
+  event_id: string | null
   agent: string
   content: string
   model: string | null
@@ -16,7 +16,7 @@ export async function storeBrief({
   content,
   model,
 }: {
-  eventId: string
+  eventId?: string | null
   agent: string
   content: string
   model: string
@@ -24,7 +24,7 @@ export async function storeBrief({
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('briefs')
-    .insert({ event_id: eventId, agent, content, model })
+    .insert({ event_id: eventId ?? null, agent, content, model })
     .select()
     .single()
   if (error) throw new Error(`Failed to store brief: ${error.message}`)
@@ -42,6 +42,29 @@ export async function getLatestBrief(eventId: string, agent = 'concierge'): Prom
     .limit(1)
     .maybeSingle()
   return data as Brief | null
+}
+
+export async function getLatestGeneralBrief(agent: string): Promise<Brief | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('briefs')
+    .select('*')
+    .is('event_id', null)
+    .eq('agent', agent)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data as Brief | null
+}
+
+export async function getAllBriefs(limit = 50): Promise<Brief[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('briefs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return (data ?? []) as Brief[]
 }
 
 export async function markBriefRead(briefId: string): Promise<void> {
