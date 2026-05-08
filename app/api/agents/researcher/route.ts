@@ -11,7 +11,7 @@ For each person use this format:
 
 ## [Name] — [Their role at this event]
 
-**Who they are:** [Professional background, company/affiliation, financial or social standing if known. 1-3 sentences.]
+**Who they are:** [Professional background, company/affiliation, financial or social standing if known. 1-3 sentences. Draw on both Cram records and web search results.]
 
 **Brian's relationship:** [History together — how many events, how long, what the relationship is worth to Brian's business. If this is the first time, say so directly.]
 
@@ -19,10 +19,28 @@ For each person use this format:
 
 **Worth knowing:** [Anything that should be in the back of Brian's mind — their personal style, sensitivities, what they respond to, what to avoid. Only include if there's something real to say.]
 
-**Gaps:** [What we don't know that might matter. Be specific — "no email history on file" is less useful than "no prior interactions recorded — approach as a first impression."]
+**Gaps:** [What we don't know that might matter. Be specific — "no email history on file" is less useful than "no prior interactions recorded — approach as a first impression." If web search returned thin results for this person, say so and suggest what a manual search might turn up.]
+
+**Locked sources:** [Only include this section if web search surfaced URLs that look genuinely useful but couldn't be fully read — LinkedIn profiles, paywalled articles, private Instagram accounts, gated directories. List each with a one-line note on why it looks worth investigating. Omit this section entirely if there's nothing meaningful to flag.]
+
+---
+
+After all person sections, add a final section only if needed:
+
+## Search notes
+
+Include this section only when one of these is true:
+- The monthly web search quota was reached (context will say so explicitly) — tell Brian and suggest he check Tavily usage
+- Web search is not configured — tell Brian to add a TAVILY_API_KEY
+- Results across multiple people were unusually thin and a different data source (e.g. LinkedIn, a wedding industry directory) would likely fill the gap — name it specifically
+
+Omit this section entirely if search worked normally and results were adequate.
+
+---
 
 Rules:
-- Only use what's in the context provided. Never invent.
+- Use web search results to enrich the brief, but treat them as one signal among many. Cram data (field notes, email history, prior events) takes precedence.
+- Only use what's in the context provided. Never invent facts.
 - If a section has nothing meaningful to say, omit it entirely — don't pad.
 - Prioritize what changes behavior. A financial background detail matters if it explains how someone operates; it doesn't matter as trivia.
 - Tone: sharp, professional, like a trusted chief of staff briefing an executive before a meeting.`

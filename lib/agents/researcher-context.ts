@@ -1,7 +1,51 @@
 import { createClient } from '@/lib/supabase/server'
+import { tavilySearch, type SearchStatus } from './web-search'
 
 function fmt(date: string) {
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+async function webSearchForContact(
+  name: string,
+  company: string | null,
+  role: string
+): Promise<{ lines: string[]; status: SearchStatus }> {
+  const queries: string[] = []
+
+  const nameAndCompany = company ? `${name} ${company}` : name
+  queries.push(nameAndCompany)
+
+  if (['planner', 'coordinator'].includes(role)) {
+    queries.push(`${name} wedding planner`)
+  }
+
+  let lastStatus: SearchStatus = 'ok'
+  const lines: string[] = []
+
+  for (const query of queries) {
+    const { results, status } = await tavilySearch(query)
+    lastStatus = status
+
+    if (status === 'rate_limited') {
+      lines.push(`[Web search unavailable — monthly quota reached]`)
+      break
+    }
+    if (status === 'error' || status === 'no_key') break
+
+    if (results.length === 0) {
+      lines.push(`Query "${query}": no results`)
+      continue
+    }
+
+    lines.push(`Query: "${query}"`)
+    for (const r of results) {
+      lines.push(`  ${r.title}`)
+      lines.push(`  ${r.url}`)
+      if (r.content) lines.push(`  ${r.content.slice(0, 400)}`)
+    }
+  }
+
+  return { lines, status: lastStatus }
 }
 
 export async function buildResearcherContext(eventId: string): Promise<string> {
@@ -53,6 +97,19 @@ export async function buildResearcherContext(eventId: string): Promise<string> {
     })
   )
 
+  // Run web searches in parallel for all contacts
+  const webResults = await Promise.all(
+    contactsWithHistory.map(ec =>
+      ec.contact
+        ? webSearchForContact(ec.contact.name, ec.contact.company ?? null, ec.role)
+        : Promise.resolve({ lines: [], status: 'ok' as SearchStatus })
+    )
+  )
+
+  const searchStatuses = webResults.map(r => r.status)
+  const quotaExceeded = searchStatuses.includes('rate_limited')
+  const noKey = searchStatuses.every(s => s === 'no_key')
+
   const lines: string[] = []
 
   lines.push('=== EVENT CONTEXT ===')
@@ -62,10 +119,19 @@ export async function buildResearcherContext(eventId: string): Promise<string> {
   if (venue) lines.push(`Venue: ${venue}`)
   if (event.notes) lines.push(`Event notes: ${event.notes}`)
 
+  if (quotaExceeded) {
+    lines.push('')
+    lines.push('[NOTE: Tavily monthly search quota reached — web results unavailable for this run. Flag this to Brian so he can check usage.]')
+  } else if (noKey) {
+    lines.push('')
+    lines.push('[NOTE: No TAVILY_API_KEY configured — web search disabled.]')
+  }
+
   lines.push('')
   lines.push('=== PEOPLE TO PROFILE ===')
 
-  for (const ec of contactsWithHistory) {
+  for (let i = 0; i < contactsWithHistory.length; i++) {
+    const ec = contactsWithHistory[i]
     const contact = ec.contact
     if (!contact) continue
 
@@ -128,6 +194,12 @@ export async function buildResearcherContext(eventId: string): Promise<string> {
       for (const ev of ec.futureEvents) {
         lines.push(`  - ${fmt(ev.date)}: ${ev.title || 'Untitled'}${ev.venue_name ? ` at ${ev.venue_name}` : ''}`)
       }
+    }
+
+    const web = webResults[i]
+    if (web.lines.length > 0) {
+      lines.push('Web search results:')
+      for (const l of web.lines) lines.push(`  ${l}`)
     }
   }
 
