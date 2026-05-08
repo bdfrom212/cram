@@ -92,7 +92,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
         )}
 
         <BriefSection eventId={id} initialBrief={existingBrief} />
-        <ResearchSection eventId={id} initialBrief={existingResearch} />
+        <ResearchSection eventId={id} initialBrief={existingResearch} eventContacts={eventContacts} />
         <SophiaSection eventId={id} initialBrief={existingContent} />
       </div>
     </div>
