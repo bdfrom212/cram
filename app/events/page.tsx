@@ -108,7 +108,6 @@ function EventRow({ ev }: { ev: EventRow }) {
           href={`https://tave.app/jobs/view/${ev.tave_job_id}`}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={e => e.stopPropagation()}
           className="flex-shrink-0 text-xs text-gray-300 hover:text-blue-500 px-1 py-0.5 rounded"
           title="Open in Tave"
         >
