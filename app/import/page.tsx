@@ -9,23 +9,25 @@ async function getProgress() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
-  const { data } = await supabase
-    .from('import_planner_clusters')
-    .select('status')
+  const [{ data: clusters }, { count: eventCount }] = await Promise.all([
+    supabase.from('import_planner_clusters').select('status'),
+    supabase.from('events').select('*', { count: 'exact', head: true }),
+  ])
 
   const counts = { pending: 0, approved: 0, split: 0, skip: 0 }
-  data?.forEach(row => {
+  clusters?.forEach(row => {
     const s = row.status as keyof typeof counts
     if (s in counts) counts[s]++
   })
-  return counts
+  return { counts, eventCount: eventCount ?? 0 }
 }
 
 export default async function ImportPage() {
-  const counts = await getProgress()
+  const { counts, eventCount } = await getProgress()
   const total = counts.pending + counts.approved + counts.split + counts.skip
   const done = counts.approved + counts.split + counts.skip
   const plannersDone = total > 0 && counts.pending === 0
+  const eventsDone = eventCount >= 1000
 
   type StageStatus = 'complete' | 'active' | 'upcoming' | 'locked'
   const stages: { number: number; title: string; description: string; status: StageStatus; href: string | null }[] = [
@@ -46,8 +48,8 @@ export default async function ImportPage() {
     {
       number: 3,
       title: 'Event Import',
-      description: '0 events staged',
-      status: plannersDone ? 'upcoming' : 'locked',
+      description: eventsDone ? `${eventCount.toLocaleString()} events imported` : '0 events staged',
+      status: eventsDone ? 'complete' : plannersDone ? 'upcoming' : 'locked',
       href: null,
     },
     {
