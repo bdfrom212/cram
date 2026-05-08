@@ -31,7 +31,7 @@ export default async function UpdatesPage() {
 
   // Get event titles for event-keyed briefs
   const eventIds = Array.from(new Set(briefs.map(b => b.event_id).filter(Boolean))) as string[]
-  let eventMap: Record<string, string> = {}
+  const eventMap: Record<string, string> = {}
   if (eventIds.length) {
     const { data: events } = await supabase
       .from('events')

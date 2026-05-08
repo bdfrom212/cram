@@ -2,12 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 export default function Nav() {
   const pathname = usePathname()
   const router = useRouter()
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
 
   if (pathname === '/login') return null
 
@@ -16,6 +19,25 @@ export default function Nav() {
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()
+  }
+
+  function handleTouchStart() {
+    didLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      alert(`Built: ${buildLabel}`)
+    }, 500)
+  }
+
+  function handleTouchEnd() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+  }
+
+  function handleLogoClick(e: React.MouseEvent) {
+    if (didLongPress.current) {
+      e.preventDefault()
+      didLongPress.current = false
+    }
   }
 
   const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME
@@ -30,7 +52,16 @@ export default function Nav() {
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
       <div className="max-w-2xl mx-auto px-4 h-12 flex items-center justify-between">
-        <Link href="/" className="font-semibold text-gray-900 tracking-tight" title={`Built: ${buildLabel}`}>
+        <Link
+          href="/"
+          className="font-semibold text-gray-900 tracking-tight select-none"
+          title={`Built: ${buildLabel}`}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchMove={handleTouchEnd}
+          onContextMenu={e => e.preventDefault()}
+          onClick={handleLogoClick}
+        >
           cram
         </Link>
         <div className="flex items-center gap-4 text-sm">
