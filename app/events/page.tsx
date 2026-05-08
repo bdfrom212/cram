@@ -25,16 +25,19 @@ export default async function EventsPage() {
   const events = (data ?? []) as unknown as EventRow[]
   const today = new Date().toISOString().split('T')[0]
 
-  const upcoming = events.filter(e => e.date >= today)
-  const past     = events.filter(e => e.date <  today)
+  // Upcoming: soonest first
+  const upcoming = events.filter(e => e.date >= today).reverse()
 
-  // Group past events by year
+  // Past: group by year (most recent year first), within each year Jan→Dec
+  const past = events.filter(e => e.date < today)
   const byYear = new Map<number, EventRow[]>()
   for (const ev of past) {
     const year = parseInt(ev.date.slice(0, 4))
     if (!byYear.has(year)) byYear.set(year, [])
     byYear.get(year)!.push(ev)
   }
+  // Events arrived desc from DB — reverse each year bucket to get Jan→Dec
+  byYear.forEach(evs => evs.reverse())
   const sortedYears = Array.from(byYear.keys()).sort((a, b) => b - a)
   const currentYear = new Date().getFullYear()
 
