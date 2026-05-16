@@ -37,14 +37,67 @@ export async function buildConciergeContext(eventId: string): Promise<string> {
     planners.map(async (planner: any) => {
       const { data: links } = await supabase
         .from('event_contacts')
-        .select('event:events(id, title, date, venue_name)')
+        .select('company_context, event:events(id, title, date, venue_name)')
         .eq('contact_id', planner.id)
-        .order('created_at', { ascending: false })
-        .limit(10)
+        .limit(20)
+      const past = (links ?? [])
+        .map((l: any) => ({ ...l.event, company_context: l.company_context }))
+        .filter((e: any) => e.id && e.id !== eventId && e.date <= event.date)
+        .sort((a: any, b: any) => b.date.localeCompare(a.date))
+      // Detect firm transitions: unique companies across history vs current
+      const historicalFirms = [...new Set(past.map((e: any) => e.company_context).filter(Boolean))]
+      const firmTransition = historicalFirms.length > 0 && planner.company &&
+        !historicalFirms.some((f: string) => f.toLowerCase().includes(planner.company.toLowerCase()) || planner.company.toLowerCase().includes(f.toLowerCase()))
+      return { planner, past, historicalFirms, firmTransition }
+    })
+  )
+
+  // Fetch history for each client, plus family connections via shared last name
+  const clientHistories = await Promise.all(
+    clients.map(async (client: any) => {
+      const { data: links } = await supabase
+        .from('event_contacts')
+        .select('event:events(id, title, date, venue_name)')
+        .eq('contact_id', client.id)
+        .limit(20)
       const events = (links ?? []).map((l: any) => l.event).filter(Boolean)
       const past = events.filter((e: any) => e.id !== eventId && e.date <= event.date)
         .sort((a: any, b: any) => b.date.localeCompare(a.date))
-      return { planner, past }
+
+      // Family connections — find other contacts sharing the same last name
+      const nameParts = (client.name ?? '').trim().split(/\s+/)
+      const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : null
+      let familyConnections: Array<{ name: string; eventCount: number }> = []
+
+      if (lastName && lastName.length > 2) {
+        const { data: familyContacts } = await supabase
+          .from('contacts')
+          .select('id, name')
+          .ilike('name', `%${lastName}%`)
+          .neq('id', client.id)
+          .limit(20)
+
+        if (familyContacts && familyContacts.length > 0) {
+          const familyIds = familyContacts.map((c: any) => c.id)
+          const { data: familyLinks } = await supabase
+            .from('event_contacts')
+            .select('contact_id, event_id')
+            .in('contact_id', familyIds)
+
+          const countByContact: Record<string, number> = {}
+          for (const link of familyLinks ?? []) {
+            countByContact[link.contact_id] = (countByContact[link.contact_id] ?? 0) + 1
+          }
+
+          familyConnections = familyContacts
+            .filter((c: any) => (countByContact[c.id] ?? 0) > 0)
+            .map((c: any) => ({ name: c.name, eventCount: countByContact[c.id] ?? 0 }))
+            .sort((a, b) => b.eventCount - a.eventCount)
+            .slice(0, 6)
+        }
+      }
+
+      return { client, past, familyConnections }
     })
   )
 
@@ -61,9 +114,14 @@ export async function buildConciergeContext(eventId: string): Promise<string> {
   lines.push('')
   lines.push('=== PLANNERS ===')
 
-  for (const { planner, past } of plannerHistories) {
+  for (const { planner, past, historicalFirms, firmTransition } of plannerHistories) {
     lines.push('')
     lines.push(`Name: ${planner.name}${planner.company ? ` (${planner.company})` : ''}`)
+    if (firmTransition) {
+      lines.push(`Firm note: Previously worked at ${historicalFirms.join(', ')} — now at ${planner.company}. Long relationship, new context.`)
+    } else if (historicalFirms.length > 0 && !planner.company) {
+      lines.push(`Firm note: Previously at ${historicalFirms.join(', ')} — current firm not on file.`)
+    }
     if (planner.instagram) lines.push(`Instagram: ${planner.instagram}`)
     if (planner.last_contact_date) lines.push(`Last contact: ${fmt(planner.last_contact_date)}`)
 
@@ -108,7 +166,8 @@ export async function buildConciergeContext(eventId: string): Promise<string> {
     if (past.length) {
       lines.push(`Past events together (${past.length}):`)
       for (const ev of past.slice(0, 5)) {
-        lines.push(`  - ${fmt(ev.date)}: ${ev.title || 'Untitled'}${ev.venue_name ? ` at ${ev.venue_name}` : ''}`)
+        const firmNote = ev.company_context ? ` [${ev.company_context}]` : ''
+        lines.push(`  - ${fmt(ev.date)}: ${ev.title || 'Untitled'}${ev.venue_name ? ` at ${ev.venue_name}` : ''}${firmNote}`)
       }
     } else {
       lines.push('Past events together: This will be the first time.')
@@ -121,10 +180,43 @@ export async function buildConciergeContext(eventId: string): Promise<string> {
 
   lines.push('')
   lines.push('=== CLIENTS (The Couple / Client) ===')
-  if (clients.length) {
-    for (const client of clients) {
-      lines.push(`Name: ${client.name}`)
-      if (client.personal_notes?.trim()) lines.push(`Notes: ${client.personal_notes.trim()}`)
+
+  if (clientHistories.length) {
+    for (const { client, past, familyConnections } of clientHistories) {
+      lines.push('')
+      lines.push(`Name: ${client.name}${client.company ? ` (${client.company})` : ''}`)
+      if (client.last_contact_date) lines.push(`Last contact: ${fmt(client.last_contact_date)}`)
+
+      if (client.personal_notes?.trim()) {
+        lines.push(`Notes: ${client.personal_notes.trim()}`)
+      }
+      if (client.action_items?.trim()) {
+        lines.push(`Things to remember: ${client.action_items.trim()}`)
+      }
+
+      const notes = (client.notes ?? [])
+        .sort((a: any, b: any) => b.created_at.localeCompare(a.created_at))
+        .slice(0, 3)
+      if (notes.length) {
+        lines.push('Field notes (most recent first):')
+        for (const n of notes) {
+          lines.push(`  [${fmt(n.created_at)}] ${n.body}`)
+        }
+      }
+
+      if (past.length) {
+        lines.push(`Past sessions together (${past.length}):`)
+        for (const ev of past.slice(0, 5)) {
+          lines.push(`  - ${fmt(ev.date)}: ${ev.title || 'Untitled'}${ev.venue_name ? ` at ${ev.venue_name}` : ''}`)
+        }
+      }
+
+      if (familyConnections.length) {
+        lines.push('Family / related contacts in system:')
+        for (const fc of familyConnections) {
+          lines.push(`  - ${fc.name} (${fc.eventCount} event${fc.eventCount === 1 ? '' : 's'} on file)`)
+        }
+      }
     }
   } else {
     lines.push('No client details on file yet.')
