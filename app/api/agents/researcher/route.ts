@@ -61,6 +61,36 @@ export async function POST(request: NextRequest) {
   const content = await runAgent({ systemPrompt: DIANA_SYSTEM_PROMPT, context, model: MODEL_DEEP, maxTokens: 2048 })
   const brief   = await storeBrief({ eventId, agent: 'researcher', content, model: MODEL_DEEP })
 
+  // If this is an inquiry event, create a notification
+  const supabase = await (async () => {
+    const { createClient } = await import('@/lib/supabase/server')
+    return createClient()
+  })()
+
+  const { data: event } = await supabase
+    .from('events')
+    .select('id, title, date, stage, venue_name, event_contacts(contact_id, role, contact:contacts(name))')
+    .eq('id', eventId)
+    .single()
+
+  if (event?.stage === 'inquiry') {
+    const clientNames = (event.event_contacts ?? [])
+      .filter((ec: any) => ec.role === 'client')
+      .map((ec: any) => ec.contact?.name)
+      .filter(Boolean)
+      .join(' & ')
+
+    const dateStr = new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const message = `Diana has finished research on ${clientNames || 'clients'} — new inquiry for ${dateStr}${event.venue_name ? ` at ${event.venue_name}` : ''}`
+
+    await supabase.from('notifications').insert({
+      event_id: eventId,
+      title: 'Research Complete',
+      message,
+      action_url: `/events/${eventId}`,
+    })
+  }
+
   return NextResponse.json({ brief })
 }
 

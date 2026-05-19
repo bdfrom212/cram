@@ -3,6 +3,14 @@
     {
       "path": "/api/agents/concierge/run",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/vsco-sync",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/vsco-sync?mode=inquiries",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

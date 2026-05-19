@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { NotificationsBell } from './NotificationsBell'
 
 export default function Nav() {
   const pathname = usePathname()
@@ -95,6 +96,7 @@ export default function Nav() {
           >
             Import
           </Link>
+          <NotificationsBell />
           <button
             onClick={signOut}
             className="text-gray-400 hover:text-gray-600"
