@@ -153,6 +153,21 @@ export default async function ContactDossierPage({ params }: { params: Promise<{
           </div>
         )}
 
+        {/* Research Summary — Diana */}
+        {c.research_summary && (
+          <div className="border-t border-gray-100 px-5 py-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Research — Diana</p>
+              {c.last_researched_at && (
+                <p className="text-xs text-gray-300">
+                  {new Date(c.last_researched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+              )}
+            </div>
+            <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{c.research_summary}</p>
+          </div>
+        )}
+
         {/* Personal Notes from contact record */}
         {personalLines.length > 0 && (
           <div className="border-t border-gray-100 px-5 py-4">

@@ -3,6 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Brief } from '@/lib/agents/store'
 
+interface Anniversary {
+  id: string
+  title: string | null
+  date: string
+  anniversary_date: string
+  client_names: string | null
+  venue_name: string | null
+}
+
 interface Commitment {
   id: string
   body: string
@@ -36,11 +45,14 @@ function ageDays(dateStr: string) {
 export default function GracePage() {
   const [brief, setBrief] = useState<Brief | null>(null)
   const [commitments, setCommitments] = useState<Commitment[]>([])
+  const [anniversaries, setAnniversaries] = useState<Anniversary[]>([])
   const [loading, setLoading] = useState(false)
   const [briefLoading, setBriefLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [newCommitment, setNewCommitment] = useState('')
   const [adding, setAdding] = useState(false)
+  const [draftingFor, setDraftingFor] = useState<string | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
 
   const loadCommitments = useCallback(async () => {
     const res = await fetch('/api/commitments')
@@ -56,6 +68,10 @@ export default function GracePage() {
       .then(({ brief }) => { setBrief(brief); setBriefLoading(false) })
       .catch(() => setBriefLoading(false))
     loadCommitments()
+    fetch('/api/anniversaries')
+      .then(r => r.json())
+      .then(data => setAnniversaries(data.anniversaries ?? []))
+      .catch(() => {})
   }, [loadCommitments])
 
   async function runStandup(force = false) {
@@ -83,6 +99,24 @@ export default function GracePage() {
       body: JSON.stringify({ action: 'complete', commitmentId: id }),
     })
     setCommitments(prev => prev.filter(c => c.id !== id))
+  }
+
+  async function draftAnniversaryPost(anniversary: Anniversary) {
+    setDraftingFor(anniversary.id)
+    try {
+      const res = await fetch('/api/agents/publicist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: anniversary.id, force: true, type: 'anniversary' }),
+      })
+      const data = await res.json()
+      const text = data.brief?.content ?? data.content ?? 'Draft unavailable'
+      setDrafts(prev => ({ ...prev, [anniversary.id]: text }))
+    } catch {
+      setDrafts(prev => ({ ...prev, [anniversary.id]: 'Error generating draft.' }))
+    } finally {
+      setDraftingFor(null)
+    }
   }
 
   async function addCommitment() {
@@ -150,6 +184,58 @@ export default function GracePage() {
         )}
         {error && <p className="px-5 pb-4 text-xs text-red-500">{error}</p>}
       </div>
+
+      {/* Anniversaries — Sophia's queue */}
+      {anniversaries.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Upcoming Anniversaries — Sophia
+            </p>
+          </div>
+          <ul className="divide-y divide-gray-50">
+            {anniversaries.map(a => {
+              const yearsAgo = new Date().getFullYear() - new Date(a.date).getFullYear()
+              const annivDate = new Date(a.anniversary_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              const names = a.client_names || a.title || 'Unnamed couple'
+              return (
+                <li key={a.id} className="px-5 py-3 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{names}</p>
+                      <p className="text-xs text-gray-400">
+                        {yearsAgo}-year anniversary · {annivDate}
+                        {a.venue_name && ` · ${a.venue_name}`}
+                      </p>
+                    </div>
+                    {!drafts[a.id] && (
+                      <button
+                        onClick={() => draftAnniversaryPost(a)}
+                        disabled={draftingFor === a.id}
+                        className="flex-shrink-0 text-xs bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                      >
+                        {draftingFor === a.id ? 'Drafting…' : 'Draft post'}
+                      </button>
+                    )}
+                  </div>
+                  {drafts[a.id] && (
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-gray-400 mb-1.5">Draft — Sophia</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{drafts[a.id]}</p>
+                      <button
+                        onClick={() => setDrafts(prev => { const n = { ...prev }; delete n[a.id]; return n })}
+                        className="mt-2 text-xs text-gray-400 hover:text-gray-600"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* Commitments */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">

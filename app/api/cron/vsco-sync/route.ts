@@ -153,8 +153,97 @@ async function handleBooked(supabase: Awaited<ReturnType<typeof createClient>>) 
   return NextResponse.json({ ok: true, newJobsFound: newJobs.length, ...summary })
 }
 
+async function fillMissingInquiryContacts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  summary: { eventsAdded: number; contactsLinked: number; researchTriggered: number; errors: number }
+) {
+  // Find inquiry events with no linked contacts (likely rate-limited on first import)
+  const { data: orphanedEvents } = await supabase
+    .from('events')
+    .select('id, vsco_id, title, date')
+    .eq('stage', 'inquiry')
+
+  for (const event of orphanedEvents ?? []) {
+    // Check if this event already has contacts
+    const { data: hasContacts } = await supabase
+      .from('event_contacts')
+      .select('id', { count: 'exact' })
+      .eq('event_id', event.id)
+      .limit(1)
+
+    if ((hasContacts?.length ?? 0) > 0) continue // Already has contacts
+
+    let vscoJobId = event.vsco_id
+
+    // If no vsco_id, try to find it by searching VSCO
+    if (!vscoJobId && event.title) {
+      try {
+        const jobs = await fetchJobs(1, 100)
+        if (jobs) {
+          const match = jobs.items.find(j => j.name === event.title && j.eventDate === event.date)
+          if (match) vscoJobId = match.id
+        }
+      } catch {
+        // Ignore errors in searching
+      }
+    }
+
+    if (!vscoJobId) continue
+
+    try {
+      const jobContacts = await fetchJobContacts(vscoJobId)
+      await sleep(150)
+
+      for (const jc of jobContacts) {
+        if (!jc.contactId) continue
+
+        const ab = await fetchAddressBook(jc.contactId)
+        await sleep(100)
+        if (!ab) continue
+
+        const importSource = `vsco:${jc.contactId}`
+        const { data: contact } = await supabase
+          .from('contacts')
+          .upsert(
+            {
+              name: contactDisplayName(ab),
+              email: ab.email ?? null,
+              phone: extractPhone(ab) ?? null,
+              instagram: extractInstagram(ab) ?? null,
+              company: ab.companyName ?? null,
+              import_source: importSource,
+            },
+            { onConflict: 'import_source', ignoreDuplicates: false }
+          )
+          .select('id')
+          .single()
+
+        if (!contact?.id) continue
+
+        const role = jc.roleKinds.includes('client')
+          ? 'client'
+          : jc.roleKinds.includes('planner')
+            ? 'planner'
+            : 'vendor'
+
+        const { error: linkErr } = await supabase
+          .from('event_contacts')
+          .insert({ event_id: event.id, contact_id: contact.id, role })
+
+        if (!linkErr) summary.contactsLinked++
+      }
+    } catch {
+      summary.errors++
+    }
+  }
+}
+
 async function handleInquiries(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const summary = { eventsAdded: 0, researchTriggered: 0, errors: 0 }
+  const summary = { eventsAdded: 0, contactsLinked: 0, researchTriggered: 0, errors: 0 }
+
+  // Also try to fill in missing contacts for existing inquiry events
+  // (in case rate limiting prevented them from being fetched on first import)
+  await fillMissingInquiryContacts(supabase, summary)
 
   let page = 1
   const inquiryJobs: { vscoId: string; taveId: string | null; primarySessionId: string | null; name: string; date: string }[] = []
@@ -185,7 +274,8 @@ async function handleInquiries(supabase: Awaited<ReturnType<typeof createClient>
   const newInquiries = inquiryJobs.filter(j => j.taveId && !existingIds.has(j.taveId))
 
   if (newInquiries.length === 0) {
-    return NextResponse.json({ ok: true, message: 'No new inquiries', ...summary })
+    const message = summary.contactsLinked > 0 ? `Linked contacts for ${summary.contactsLinked} existing inquiries` : 'No new inquiries'
+    return NextResponse.json({ ok: true, message, ...summary })
   }
 
   const contactCache: Record<string, { name: string; email?: string; phone?: string; instagram?: string; company?: string; role?: string }> = {}
@@ -211,6 +301,7 @@ async function handleInquiries(supabase: Awaited<ReturnType<typeof createClient>
           venue_city: venueCity,
           venue_state: venueState,
           tave_job_id: inquiry.taveId,
+          vsco_id: inquiry.vscoId,
           import_source: 'vsco',
           stage: 'inquiry',
         })

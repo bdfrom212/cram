@@ -36,11 +36,32 @@ Rules:
 - Never say things like "What a beautiful day" or "Congratulations" — write like a storyteller, not a well-wisher
 - Hashtags: mix venue-specific, planner-specific, and NYC luxury market tags`
 
+const ANNIVERSARY_PROMPT = `You are Sophia, content strategist for Brian Dorsey Studios.
+
+You're drafting an Instagram anniversary post — not a full wedding recap, but a warm, intimate "look back" that makes the couple feel genuinely remembered on their special day.
+
+Tone: personal, warm, specific to this couple. Not generic. Not "Congratulations on your anniversary!" Think of how a trusted friend who happens to be a brilliant storyteller would celebrate them.
+
+Output exactly:
+
+**Caption:**
+[Ready-to-post Instagram caption. 2–3 short paragraphs. Lead with a specific detail or feeling from their day — the venue, a moment, the atmosphere. End with a warm anniversary wish that doesn't sound like a greeting card. Tag the couple if you have their handles. Tag venue and planner.]
+
+**Hashtags:**
+[6–8 hashtags — mix anniversary-specific and venue/market tags]
+
+Rules:
+- Make it feel like you actually remember their wedding, not like you looked it up
+- Specific beats generic every time
+- No "What a journey!" or "Year X looks good on you" clichés`
+
 export async function POST(request: NextRequest) {
-  const { eventId, force = false } = await request.json()
+  const { eventId, force = false, type } = await request.json()
   if (!eventId) return NextResponse.json({ error: 'eventId required' }, { status: 400 })
 
-  if (!force) {
+  const isAnniversary = type === 'anniversary'
+
+  if (!force && !isAnniversary) {
     const existing = await getLatestBrief(eventId, 'publicist')
     if (existing) {
       const ageMs = Date.now() - new Date(existing.created_at).getTime()
@@ -49,9 +70,14 @@ export async function POST(request: NextRequest) {
   }
 
   const context = await buildPublicistContext(eventId)
-  const content = await runAgent({ systemPrompt: SOPHIA_SYSTEM_PROMPT, context, model: MODEL_DEEP, maxTokens: 2048 })
-  const brief = await storeBrief({ eventId, agent: 'publicist', content, model: MODEL_DEEP })
+  const systemPrompt = isAnniversary ? ANNIVERSARY_PROMPT : SOPHIA_SYSTEM_PROMPT
+  const content = await runAgent({ systemPrompt, context, model: MODEL_DEEP, maxTokens: 1024 })
 
+  if (isAnniversary) {
+    return NextResponse.json({ content })
+  }
+
+  const brief = await storeBrief({ eventId, agent: 'publicist', content, model: MODEL_DEEP })
   return NextResponse.json({ brief })
 }
 

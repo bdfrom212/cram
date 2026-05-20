@@ -12,6 +12,8 @@ export interface Contact {
   personal_notes?: string
   last_contact_date?: string
   gmail_sync_enabled?: boolean
+  research_summary?: string
+  last_researched_at?: string
   created_at: string
   updated_at: string
 }

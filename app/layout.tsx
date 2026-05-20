@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Nav from '@/components/Nav'
+import GraceChat from '@/components/GraceChat'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="max-w-2xl mx-auto px-4 py-6">
           {children}
         </main>
+        <GraceChat />
       </body>
     </html>
   )
