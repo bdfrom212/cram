@@ -46,52 +46,57 @@ Rules:
 - Tone: sharp, professional, like a trusted chief of staff briefing an executive before a meeting.`
 
 export async function POST(request: NextRequest) {
-  const { eventId, force = false } = await request.json()
-  if (!eventId) return NextResponse.json({ error: 'eventId required' }, { status: 400 })
+  try {
+    const { eventId, force = false } = await request.json()
+    if (!eventId) return NextResponse.json({ error: 'eventId required' }, { status: 400 })
 
-  if (!force) {
-    const existing = await getLatestBrief(eventId, 'researcher')
-    if (existing) {
-      const ageMs = Date.now() - new Date(existing.created_at).getTime()
-      if (ageMs < 48 * 60 * 60 * 1000) return NextResponse.json({ brief: existing })
+    if (!force) {
+      const existing = await getLatestBrief(eventId, 'researcher')
+      if (existing) {
+        const ageMs = Date.now() - new Date(existing.created_at).getTime()
+        if (ageMs < 48 * 60 * 60 * 1000) return NextResponse.json({ brief: existing })
+      }
     }
+
+    const context = await buildResearcherContext(eventId)
+    const content = await runAgent({ systemPrompt: DIANA_SYSTEM_PROMPT, context, model: MODEL_DEEP, maxTokens: 2048 })
+    const brief   = await storeBrief({ eventId, agent: 'researcher', content, model: MODEL_DEEP })
+
+    // If this is an inquiry event, create a notification
+    const supabase = await (async () => {
+      const { createClient } = await import('@/lib/supabase/server')
+      return createClient()
+    })()
+
+    const { data: event } = await supabase
+      .from('events')
+      .select('id, title, date, stage, venue_name, event_contacts(contact_id, role, contact:contacts(name))')
+      .eq('id', eventId)
+      .single()
+
+    if (event?.stage === 'inquiry') {
+      const clientNames = (event.event_contacts ?? [])
+        .filter((ec: any) => ec.role === 'client')
+        .map((ec: any) => ec.contact?.name)
+        .filter(Boolean)
+        .join(' & ')
+
+      const dateStr = new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const message = `Diana has finished research on ${clientNames || 'clients'} — new inquiry for ${dateStr}${event.venue_name ? ` at ${event.venue_name}` : ''}`
+
+      await supabase.from('notifications').insert({
+        event_id: eventId,
+        title: 'Research Complete',
+        message,
+        action_url: `/events/${eventId}`,
+      })
+    }
+
+    return NextResponse.json({ brief })
+  } catch (error) {
+    console.error('Researcher endpoint error:', error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
-
-  const context = await buildResearcherContext(eventId)
-  const content = await runAgent({ systemPrompt: DIANA_SYSTEM_PROMPT, context, model: MODEL_DEEP, maxTokens: 2048 })
-  const brief   = await storeBrief({ eventId, agent: 'researcher', content, model: MODEL_DEEP })
-
-  // If this is an inquiry event, create a notification
-  const supabase = await (async () => {
-    const { createClient } = await import('@/lib/supabase/server')
-    return createClient()
-  })()
-
-  const { data: event } = await supabase
-    .from('events')
-    .select('id, title, date, stage, venue_name, event_contacts(contact_id, role, contact:contacts(name))')
-    .eq('id', eventId)
-    .single()
-
-  if (event?.stage === 'inquiry') {
-    const clientNames = (event.event_contacts ?? [])
-      .filter((ec: any) => ec.role === 'client')
-      .map((ec: any) => ec.contact?.name)
-      .filter(Boolean)
-      .join(' & ')
-
-    const dateStr = new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    const message = `Diana has finished research on ${clientNames || 'clients'} — new inquiry for ${dateStr}${event.venue_name ? ` at ${event.venue_name}` : ''}`
-
-    await supabase.from('notifications').insert({
-      event_id: eventId,
-      title: 'Research Complete',
-      message,
-      action_url: `/events/${eventId}`,
-    })
-  }
-
-  return NextResponse.json({ brief })
 }
 
 export async function GET(request: NextRequest) {
