@@ -57,8 +57,23 @@ I operate at trust level 3, meaning I can surface concerns, flag risks, and bloc
 | Claire (Concierge) | Events, contacts, notes, email_log, key_people | briefs table only | Pre-event briefing | At launch |
 | Gmail scan (session) | Gmail read-only via MCP | None | Historical context import | At launch |
 | Cron runner | Same as Claire, triggered automatically | briefs table only | 7am auto-brief | At launch |
+| Grace (Chief of Staff) | contacts, events, event_contacts, key_people, notes, commitments, chat_sessions, chat_messages, operations_log | contacts (allowlisted fields only — no system fields), notes, commitments, event_contacts, chat_sessions, chat_messages, operations_log | Interactive chat interface — Brian's primary point of contact | 2026-07-23 |
+| Margaret (The Curator) | contacts, events, event_contacts, key_people, notes | contacts (merge execution only), event_contacts (re-link on merge) | Data quality and contact merge specialist — called by Grace only, typed function calls, sequential, requires explicit Brian confirmation before any write executes | 2026-07-23 |
 
 *This register must be updated every time access changes. It is the source of truth.*
+
+## Grace Chat — Security Decisions (2026-07-23)
+
+Reviewed and signed off by Brian Dorsey. Decisions recorded:
+
+1. **Grace field allowlist** — `update_contact` restricted to explicit allowlist. System fields (`tave_job_id`, `last_researched_at`, `created_at`, underscore-prefixed fields) are off-limits.
+2. **Margaret confirmation gate** — Margaret cannot execute a merge without a `confirmed: true` parameter set by Brian's explicit UI action. Grace cannot confirm on Brian's behalf. (May be revisited to allow Grace delegation later.)
+3. **Operations log retention** — Full retention indefinitely. PII redaction runs on contact delete (wipes `before_state`/`after_state`, sets `pii_redacted_at`). Brian queries the log through Grace, not directly. Grace flags in standup if log size becomes notable.
+4. **Margaret sequencing** — Margaret operations are sequential and confirmation-gated. Other agent dispatches (Diana, Sophia, etc.) can run in parallel even while a Margaret operation is pending.
+5. **RLS** — All new tables touched by Grace or Margaret must have RLS enabled before go-live.
+6. **API key hygiene** — No key material through the agentic loop. Tool call parameters logged to `chat_messages.tool_calls` must be audited to ensure no sensitive strings are echoed.
+7. **Rate limiting** — Pause-and-queue model, not hard block. Grace notifies Brian of pending work and expected retry time when limit is hit. Operations in flight are never interrupted. Auto-resumes on window reset.
+8. **Audit trail** — Full `operations_log` kept indefinitely. No automatic purge. Grace monitors size and surfaces a standup note if storage becomes notable.
 
 ## Pending Reviews (Before Going Live)
 
@@ -67,6 +82,10 @@ I operate at trust level 3, meaning I can surface concerns, flag risks, and bloc
 - [ ] **Supabase RLS** — verify that anon key cannot access other users' data (critical before multi-tenant)
 - [ ] **Anthropic API key** — verify it is environment-variable only, never in code or logs
 - [ ] **Cron endpoint** — verify CRON_SECRET is set in Vercel production environment
+- [x] **Grace write capabilities** — reviewed 2026-07-23, field allowlist defined, decisions recorded above
+- [x] **Margaret database access** — reviewed 2026-07-23, merge execution only, confirmation-gated
+- [x] **operations_log audit trail** — reviewed 2026-07-23, retention policy set, PII redaction defined
+- [x] **Grace → Margaret trust boundary** — reviewed 2026-07-23, typed function calls only, sequential
 
 ## How I Communicate With Brian
 
