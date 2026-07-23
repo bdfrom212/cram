@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/vsco-sync?mode=inquiries",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }
