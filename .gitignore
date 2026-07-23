@@ -39,3 +39,6 @@ next-env.d.ts
 data/*.csv
 data/planner_events_map.json
 data/existing_clusters.json
+
+.vercel
+.env*

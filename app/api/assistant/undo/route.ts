@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
 
   if (op.operation_type === 'update' && op.before_state) {
     // Restore the contact's previous field values
-    const { id: _id, created_at: _c, updated_at: _u, ...restorableFields } = op.before_state
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, created_at, updated_at, ...restorableFields } = op.before_state
     await supabase.from('contacts').update(restorableFields).eq('id', op.entity_id)
     await supabase.from('operations_log')
       .update({ undone_at: new Date().toISOString() }).eq('id', operation_id)

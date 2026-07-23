@@ -46,7 +46,7 @@ export async function buildConciergeContext(eventId: string): Promise<string> {
         .sort((a: any, b: any) => b.date.localeCompare(a.date))
       // Detect firm transitions: unique companies across history vs current
       const companies = past.map((e: any) => e.company_context).filter(Boolean)
-      // @ts-ignore downlevelIteration issue with Set
+      // @ts-expect-error downlevelIteration issue with Set
       const historicalFirms = Array.from(new Set(companies))
       const firmTransition = historicalFirms.length > 0 && planner.company &&
         !historicalFirms.some((f: string) => f.toLowerCase().includes(planner.company.toLowerCase()) || planner.company.toLowerCase().includes(f.toLowerCase()))
